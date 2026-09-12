@@ -1,0 +1,484 @@
+/* Focus viewer — design tokens mirror the Figma variable collections
+   (Color, Scale, Effects) so this file should stay in sync with the file at
+   figma.com/design/Dh0Nx5WmZxFltzY6MhvdvX by hand until we wire up token export. */
+:host {
+  all: initial;
+}
+
+.fiv-root,
+.fiv-root *,
+.fiv-root *::before,
+.fiv-root *::after {
+  box-sizing: border-box;
+}
+
+.fiv-root {
+  --bg-base: rgba(10, 10, 12, 0.75);
+  --surface-background: rgba(52, 53, 55, 0.75);
+  --surface-photo: #252529;
+  --text-primary: #f5f5f7;
+  --text-secondary: #9a9aa2;
+  --accent-highlight: #cdd5e9;
+  --accent-starred: rgba(255, 180, 84, 0.7);
+  --accent-starred-solid: #ffb454;
+
+  --glass-white-06: rgba(255, 255, 255, 0.06);
+  --glass-white-10: rgba(255, 255, 255, 0.1);
+  --glass-tile: rgba(255, 255, 255, 0.3);
+  --glass-highlight-16: rgba(170, 183, 216, 0.16);
+
+  --glow-color: rgba(255, 255, 255, 0.5);
+  --glow-radius: 15.1px;
+  --glow-spread: 3px;
+  --shadow-color: rgba(0, 0, 0, 0.46);
+  --shadow-radius: 4px;
+  --shadow-spread: 2px;
+
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  --icon-cluster-width: 36px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fiv-root[hidden] {
+  display: none;
+}
+
+.fiv-panel {
+  position: absolute;
+  inset: 0;
+  background: var(--surface-background);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow:
+    inset 0 0 var(--glow-radius) var(--glow-spread) var(--glow-color),
+    inset 0 0 var(--shadow-radius) var(--shadow-spread) var(--shadow-color);
+}
+
+/* ---------- Main image ----------
+   Fixed-px margins (not percentages) so the 26px top gap and the 26px gap
+   above the filmstrip (112px filmstrip + 26px = 138px) stay exactly equal
+   regardless of the real browser window's height — matching Figma's
+   left:64 / top:26 / bottom:26-above-filmstrip spec. The frame itself
+   carries NO fill — it's a bounding box for the photo only; any letterboxed
+   gap shows the glass panel behind it, never a placeholder.
+
+   The right margin is DERIVED (not a separate hardcoded number) from the
+   icon cluster's own 32px edge margin and width, plus another 32px gap
+   between the image and the cluster — so "32px clear on both sides of the
+   icon menu" holds automatically at any window width instead of two magic
+   numbers that could silently drift apart. */
+
+.fiv-image-frame {
+  position: absolute;
+  left: 64px;
+  right: calc(var(--space-32) + var(--icon-cluster-width) + var(--space-32));
+  top: 26px;
+  bottom: 138px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fiv-root.is-fullscreen .fiv-image-frame {
+  inset: 0;
+  border-radius: 0;
+}
+
+/* Two photos stacked in the same box. Only one is opaque at a time; a swap
+   fades the incoming one up as the outgoing one fades down, so there is no
+   moment where the frame is empty. */
+.fiv-image-frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Centered on both axes. This was briefly `top` (= 50% 0%) to keep a
+     short photo's top edge aligned with the icon menu in narrow/tall
+     windows, but centering reads better overall. Only the vertical half
+     changed — the horizontal stays at 50%, same as it has always been. */
+  object-position: center;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  cursor: pointer;
+  /* The inactive photo is still stacked on top and an opacity:0 element
+     still takes clicks, which would swallow click-to-open-source. */
+  pointer-events: none;
+}
+
+.fiv-image-frame img.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---------- Corner badge (resolution + source domain) ---------- */
+
+/* No backplate — just text, floating directly on the photo. Sits in the
+   26px gap between the image frame's bottom edge (bottom: 138px) and the
+   filmstrip's top edge (bottom: 112px): bottom/height here span exactly
+   that gap, and align-items: center places the text's LINE BOX at the
+   midpoint. The line box itself lands dead center — but the visible
+   glyphs don't fill it symmetrically (more unused space below the
+   baseline than above), which reads as "text sits a little high" even
+   though the box itself is exactly centered. translateY nudges the
+   rendered text down to compensate; confirmed against a real screenshot
+   (system font rendering varies slightly by platform) that 2px wasn't
+   quite enough — bumped to 5px. */
+.fiv-badge {
+  position: absolute;
+  right: var(--space-32);
+  bottom: 112px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  transform: translateY(5px);
+}
+
+/* Dimensions and domain read at the same visual weight — both an actual 50%
+   opacity white, rather than one using the solid --text-primary color and
+   the other a separately-toned --text-secondary gray that happened to look
+   dimmer than intended. */
+.fiv-badge .fiv-dim,
+.fiv-badge .fiv-dot,
+.fiv-badge .fiv-domain {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.fiv-badge .fiv-domain {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fiv-badge .fiv-domain:hover {
+  text-decoration: underline;
+}
+
+.fiv-root.is-fullscreen > .fiv-badge,
+.fiv-root.is-fullscreen .fiv-zoom-pill {
+  display: none;
+}
+
+/* ---------- Icon cluster ----------
+   32px from the right, top-aligned with the image frame (both sit at 26px
+   from the top) — fixed px on both so it stays pinned as the window resizes. */
+
+.fiv-icon-cluster {
+  position: absolute;
+  right: var(--space-32);
+  top: 26px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.fiv-icon-btn {
+  position: relative;
+  width: var(--icon-cluster-width);
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--glass-tile);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  border: none;
+  outline: 2px solid transparent;
+  outline-offset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  padding: 0;
+}
+
+/* iOS-style glass specular highlight — a PARTIAL STROKE around the button's
+   edge, bright only near the top-left and bottom-right corners and fading to
+   nothing along the way between them, rather than a soft glow washed across
+   the whole face. Built as a gradient-filled ring: the gradient fills a
+   padded box, then a mask cuts out everything except that padding (the
+   stroke's thickness), so only a thin ring is left — colored by the
+   gradient, so it's a highlight only where the gradient is bright. */
+.fiv-icon-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(255, 255, 255, 0) 18%,
+    rgba(255, 255, 255, 0) 82%,
+    rgba(255, 255, 255, 0.4) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Close sits apart from the rest of the stack, matching Figma's 36px gap
+   (8px flex gap + 28px extra) vs. the 8px gap between the other icons. */
+.fiv-close {
+  margin-bottom: 28px;
+}
+
+.fiv-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.fiv-icon-btn:hover {
+  filter: brightness(1.15);
+}
+
+/* Active state: 2px OUTSIDE stroke, no fill tint (per Figma) */
+.fiv-icon-btn.is-active {
+  outline: 2px solid var(--accent-highlight);
+  color: var(--accent-highlight);
+}
+
+/* Starred: no outline ring — the star icon itself swaps to a solid-filled
+   star (see overlay.js), so the fill color alone carries the active state. */
+.fiv-icon-btn.is-starred {
+  color: var(--accent-starred-solid);
+}
+
+/* ---------- Filmstrip ---------- */
+
+.fiv-filmstrip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 112px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-16);
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Transparent, not var(--surface-background) — .fiv-panel underneath
+     already paints that exact tint across the whole viewer (inset: 0), so
+     painting the same translucent color a second time here composites on
+     top of it and comes out visibly darker than the rest of the panel
+     (two stacked 0.75-alpha layers ≈ 0.94 effective alpha) — a seam right
+     at the filmstrip's edges instead of one continuous fill. Staying
+     transparent lets the panel's own tint show through untouched, so the
+     color is identical by construction rather than by coincidence.
+     No backdrop-filter of its own either, for the same reason: the panel
+     already blurs whatever's behind the whole viewer once (blur(6px)) —
+     adding a second blur(20px) pass here re-blurs that already-blurred
+     result specifically inside the filmstrip's rectangle, which reads as a
+     visibly hazier/softer band even with matching, fully-transparent
+     color. Rendered a side-by-side test of both to confirm: transparent
+     alone still left a visible seam, transparent + no blur was seamless. */
+  background: transparent;
+  scrollbar-width: none;
+}
+.fiv-filmstrip::-webkit-scrollbar { display: none; }
+
+.fiv-root.is-fullscreen .fiv-filmstrip {
+  display: none;
+}
+
+.fiv-thumb {
+  position: relative;
+  flex: 0 0 80px;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-photo);
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  outline: 4px solid transparent;
+  outline-offset: 0;
+  opacity: 1;
+  transition: opacity 200ms ease, outline-color 120ms ease, transform 150ms ease;
+}
+
+.fiv-thumb.is-loading { opacity: 0.35; }
+
+/* Outer outline (doesn't affect layout, unlike border) so growing to 130%
+   doesn't shift neighboring thumbnails. transform-origin stays centered so
+   the enlarged thumb grows equally above/below the strip's horizontal
+   center line. */
+.fiv-thumb.is-active {
+  outline-color: var(--accent-highlight);
+  transform: scale(1.3);
+  z-index: 1;
+}
+
+/* Dark diagonal gradient in the corner behind the star, so it stays legible
+   against bright/busy thumbnail content instead of just floating on top. */
+.fiv-thumb.is-pinned::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom left, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 55%);
+  pointer-events: none;
+}
+
+.fiv-thumb .fiv-pin {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- Shortlist pill ----------
+   Doubles as the only discoverable entry point into shortlist view (the "S"
+   key toggles it too, but nothing on screen ever hinted that existed) — so
+   it shows as soon as anything is starred, not only once already filtered,
+   and is clickable rather than a plain status readout. */
+
+.fiv-shortlist-pill {
+  position: absolute;
+  top: var(--space-8);
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 6px var(--space-12);
+  border-radius: var(--radius-pill);
+  background: var(--glass-highlight-16);
+  border: 1px solid var(--accent-starred-solid);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.fiv-shortlist-pill.is-visible { display: flex; }
+
+.fiv-shortlist-pill:hover { filter: brightness(1.15); }
+
+/* ---------- Zoom + pan hint / indicator ---------- */
+
+.fiv-hint,
+.fiv-zoom-pill {
+  position: absolute;
+  bottom: 128px;
+  padding: 8px var(--space-16);
+  border-radius: var(--radius-pill);
+  background: var(--glass-white-10);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  font-size: 11px;
+  display: flex;
+  gap: var(--space-12);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.fiv-root.is-fullscreen .fiv-hint { bottom: 24px; }
+
+.fiv-hint.is-visible { opacity: 1; }
+.fiv-hint .fiv-dot { color: var(--text-secondary); }
+.fiv-hint span.fiv-secondary { color: var(--text-secondary); }
+
+.fiv-zoom-pill {
+  right: var(--space-8);
+  left: auto;
+}
+
+/* ---------- Minimap (shown only while zoomed) ---------- */
+
+.fiv-minimap {
+  position: absolute;
+  left: var(--space-16);
+  top: var(--space-16);
+  width: 110px;
+  height: 70px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-white-10);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: none;
+}
+
+.fiv-minimap.is-visible { display: block; }
+
+.fiv-minimap .fiv-minimap-extent {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid var(--text-secondary);
+  border-radius: 2px;
+}
+
+.fiv-minimap .fiv-minimap-crop {
+  position: absolute;
+  border: 1.5px solid var(--accent-highlight);
+  background: rgba(205, 213, 233, 0.28);
+  border-radius: 1px;
+}
+
+/* ---------- Grid compare mode ---------- */
+
+.fiv-grid {
+  position: absolute;
+  inset: var(--space-32) var(--space-32) 128px;
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: var(--space-24);
+}
+
+.fiv-root.is-grid .fiv-grid { display: grid; }
+.fiv-root.is-grid > .fiv-image-frame,
+.fiv-root.is-grid > .fiv-badge { display: none; }
+
+.fiv-grid-cell {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fiv-grid-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.fiv-grid-cell .fiv-badge {
+  right: var(--space-12);
+  bottom: var(--space-12);
+}
+
+/* ---------- Close affordance ---------- */
+
+.fiv-icon-btn.fiv-close svg {
+  width: 20px;
+  height: 20px;
+}

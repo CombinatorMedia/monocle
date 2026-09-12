@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Focus — Google Images Viewer",
+  "version": "0.1.0",
+  "description": "Fullscreen filmstrip viewer for Google Images search results — browse large, high-quality images back to back without visiting host sites.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Open fullscreen viewer"
+  },
+  "permissions": ["activeTab", "scripting", "downloads"],
+  "host_permissions": ["https://www.google.com/*", "https://*/*"],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.google.com/search*"],
+      "js": [
+        "src/google-scraper.js",
+        "src/overlay.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/overlay.css", "icons/*.png"],
+      "matches": ["https://www.google.com/*"]
+    }
+  ]
+}
