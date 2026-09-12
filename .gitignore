@@ -1,0 +1,3 @@
+# Build artifact — regenerate with: zip -rq monocle-vX.Y.Z.zip manifest.json src icons
+*.zip
+.DS_Store

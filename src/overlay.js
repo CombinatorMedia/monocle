@@ -267,8 +267,15 @@
       if (incoming.complete && incoming.naturalWidth > 0) show();
     }
 
+    // Thousands separators, so grid-compare badges read the same as the main
+    // one ("1,600 × 1,600", not "1600 × 1600").
+    _formatDims(result) {
+      if (!result || !result.width || !result.height) return '';
+      return `${result.width.toLocaleString()} × ${result.height.toLocaleString()}`;
+    }
+
     _updateBadge(result) {
-      this.els.badgeDim.textContent = result.width && result.height ? `${result.width.toLocaleString()} × ${result.height.toLocaleString()}` : '';
+      this.els.badgeDim.textContent = this._formatDims(result);
       this.els.badgeDomain.textContent = result.domain || '';
       if (result.sourcePage) {
         this.els.badgeDomain.href = result.sourcePage;
@@ -412,7 +419,7 @@
       const cells = source.slice(0, 4).map((result) => {
         const cell = el(`<div class="fiv-grid-cell">
           <img alt="" src="${result.thumbSrc}" />
-          <div class="fiv-badge"><span class="fiv-dim">${result.width ? result.width + ' × ' + result.height : ''}</span><span class="fiv-dot">·</span><span class="fiv-domain">${result.domain || ''}</span></div>
+          <div class="fiv-badge"><span class="fiv-dim">${result.width ? this._formatDims(result) : ''}</span><span class="fiv-dot">·</span><span class="fiv-domain">${result.domain || ''}</span></div>
         </div>`);
         this.els.grid.appendChild(cell);
         return { cell, result };
@@ -428,7 +435,7 @@
       for (const { cell, result } of cells) {
         const r = await global.FivScraper.revealFullRes(result);
         cell.querySelector('img').src = r.fullSrc || r.thumbSrc;
-        cell.querySelector('.fiv-dim').textContent = r.width ? `${r.width} × ${r.height}` : '';
+        cell.querySelector('.fiv-dim').textContent = this._formatDims(r);
         cell.querySelector('.fiv-domain').textContent = r.domain || '';
       }
     }
