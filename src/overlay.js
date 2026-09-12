@@ -87,6 +87,7 @@
           </div>
           <div class="fiv-filmstrip"></div>
           <div class="fiv-zoom-pill"></div>
+          <div class="fiv-toast"></div>
           <div class="fiv-hint"><span>Scroll to zoom</span><span class="fiv-dot">·</span><span class="fiv-secondary">⌘/Ctrl or Shift + Scroll to pan</span></div>
         </div>
       `);
@@ -118,6 +119,7 @@
         shortlistPill: q('.fiv-shortlist-pill .fiv-count'),
         hint: q('.fiv-hint'),
         zoomPill: q('.fiv-zoom-pill'),
+        toast: q('.fiv-toast'),
         minimap: q('.fiv-minimap'),
         minimapCrop: q('.fiv-minimap-crop'),
         grid: q('.fiv-grid'),
@@ -529,10 +531,14 @@
     _fetchViaBackground(src) {
       return new Promise((resolve) => {
         chrome.runtime.sendMessage({ type: 'fiv-fetch-image', url: src }, async (response) => {
+          // needsPermission is distinct from a failure: the user simply
+          // hasn't granted access to third-party image hosts, so the caller
+          // should degrade rather than treat it as an error.
+          if (response && response.needsPermission) { resolve({ needsPermission: true }); return; }
           if (!response || !response.ok) { resolve(null); return; }
           try {
             const res = await fetch(response.dataUrl); // data: URL, not a network request
-            resolve(await res.blob());
+            resolve({ blob: await res.blob() });
           } catch (e) {
             resolve(null);
           }
@@ -556,13 +562,36 @@
       const src = this.current && (this.current.fullSrc || this.current.thumbSrc);
       if (!src) return;
       try {
-        const blob = await this._fetchViaBackground(src);
-        if (!blob) throw new Error('background fetch failed');
-        const pngBlob = await this._toPngBlob(blob);
+        const result = await this._fetchViaBackground(src);
+        if (result && result.needsPermission) {
+          // Copying the image bytes needs access to whichever host serves it,
+          // which is an optional permission granted from the options page.
+          // Until then, put the URL on the clipboard — still useful, and it
+          // needs no permission at all.
+          await navigator.clipboard.writeText(src);
+          this._flash('Image URL copied · enable image copying in settings');
+          return;
+        }
+        if (!result || !result.blob) throw new Error('background fetch failed');
+        const pngBlob = await this._toPngBlob(result.blob);
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+        this._flash('Image copied');
       } catch (e) {
-        window.open(src, '_blank');
+        try {
+          await navigator.clipboard.writeText(src);
+          this._flash('Image URL copied');
+        } catch (_) {
+          this._flash("Couldn't copy this image");
+        }
       }
+    }
+
+    _flash(message) {
+      const el = this.els.toast;
+      el.textContent = message;
+      el.classList.add('is-visible');
+      clearTimeout(this._toastTimer);
+      this._toastTimer = setTimeout(() => el.classList.remove('is-visible'), 2400);
     }
 
     downloadCurrent() {

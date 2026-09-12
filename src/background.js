@@ -21,14 +21,40 @@ async function fetchImageAsDataUrl(url) {
   });
 }
 
+// Reading image bytes off arbitrary third-party hosts needs access to those
+// hosts, which is a broad grant — so it is OPTIONAL rather than required at
+// install. A default install only asks for google.com; the wide grant is
+// requested from the options page, and only if the user wants one-click
+// copying of the image itself. Downloads don't need it (chrome.downloads
+// works cross-origin on the "downloads" permission alone), and copying the
+// image URL as text doesn't either — so everything except image-bytes
+// copying works without it.
+const IMAGE_ORIGINS = { origins: ['https://*/*'] };
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'fiv-download' && message.url) {
     chrome.downloads.download({ url: message.url });
     return false;
   }
+  if (message.type === 'fiv-image-permission') {
+    chrome.permissions.contains(IMAGE_ORIGINS).then((granted) => sendResponse({ granted }));
+    return true;
+  }
   if (message.type === 'fiv-fetch-image' && message.url) {
-    fetchImageAsDataUrl(message.url)
-      .then((dataUrl) => sendResponse({ ok: true, dataUrl }))
+    chrome.permissions
+      .contains(IMAGE_ORIGINS)
+      .then((granted) => {
+        if (!granted) {
+          // Not an error the caller should retry — it's a capability the
+          // user hasn't granted, so say so explicitly and let the content
+          // script fall back rather than silently failing.
+          sendResponse({ ok: false, needsPermission: true });
+          return;
+        }
+        return fetchImageAsDataUrl(message.url)
+          .then((dataUrl) => sendResponse({ ok: true, dataUrl }))
+          .catch((err) => sendResponse({ ok: false, error: String(err) }));
+      })
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true; // keep the message channel open for the async response
   }

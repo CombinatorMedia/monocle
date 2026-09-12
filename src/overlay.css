@@ -383,6 +383,7 @@
 /* ---------- Zoom + pan hint / indicator ---------- */
 
 .fiv-hint,
+.fiv-toast,
 .fiv-zoom-pill {
   position: absolute;
   bottom: 128px;
@@ -409,6 +410,16 @@
   right: var(--space-8);
   left: auto;
 }
+
+/* Transient confirmation for copy/download, centred above the filmstrip.
+   Shares the hint/zoom-pill glass treatment so it reads as the same family. */
+.fiv-toast {
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.fiv-toast.is-visible { opacity: 1; }
 
 /* ---------- Minimap (shown only while zoomed) ---------- */
 

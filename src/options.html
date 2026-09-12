@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Monocle — Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <h1>Monocle</h1>
+
+  <section class="card">
+    <h2>Copy image to clipboard</h2>
+    <p>
+      Monocle can copy the full-resolution image itself to your clipboard, so you
+      can paste it straight into another app. Reading the image data requires
+      permission to access the site hosting it — and since image results come
+      from all over the web, that means access to any site.
+    </p>
+    <p class="muted">
+      This is optional and off by default. Without it, Copy still works — it puts
+      the image's URL on your clipboard instead of the image. Downloading and
+      everything else in the viewer are unaffected.
+    </p>
+
+    <p id="status" class="status" role="status">Checking…</p>
+
+    <div class="row">
+      <button id="grant" type="button" hidden>Enable image copying</button>
+      <button id="revoke" type="button" class="secondary" hidden>Turn off</button>
+    </div>
+  </section>
+
+  <p class="footnote">
+    Monocle sends nothing anywhere. No accounts, no analytics, no tracking.
+    Images are fetched directly from their source only when you ask to copy one.
+  </p>
+
+  <script src="options.js"></script>
+</body>
+</html>

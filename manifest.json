@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Focus — Google Images Viewer",
-  "version": "0.1.0",
+  "name": "Monocle — Google Images Viewer",
+  "version": "1.0.0",
   "description": "Fullscreen filmstrip viewer for Google Images search results — browse large, high-quality images back to back without visiting host sites.",
   "icons": {
     "16": "icons/icon16.png",
@@ -17,7 +17,12 @@
     "default_title": "Open fullscreen viewer"
   },
   "permissions": ["activeTab", "scripting", "downloads"],
-  "host_permissions": ["https://www.google.com/*", "https://*/*"],
+  "host_permissions": ["https://www.google.com/*"],
+  "optional_host_permissions": ["https://*/*"],
+  "options_ui": {
+    "page": "src/options.html",
+    "open_in_tab": false
+  },
   "background": {
     "service_worker": "src/background.js"
   },

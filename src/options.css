@@ -1,0 +1,60 @@
+:root {
+  color-scheme: dark;
+  --bg: #202124;
+  --surface: rgba(255, 255, 255, 0.06);
+  --text: #f5f5f7;
+  --muted: #9a9aa2;
+  --accent: #cdd5e9;
+  --ok: #9ad5a8;
+}
+
+body {
+  margin: 0;
+  padding: 24px;
+  width: 420px;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.5 -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+h1 { margin: 0 0 16px; font-size: 15px; letter-spacing: 0.2px; }
+h2 { margin: 0 0 8px; font-size: 13px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+p { margin: 0 0 10px; }
+.muted { color: var(--muted); }
+
+.status {
+  margin: 14px 0 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+}
+.status.on { color: var(--ok); }
+
+.row { display: flex; gap: 8px; }
+
+button {
+  font: inherit;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: #1b1c1e;
+  cursor: pointer;
+}
+button.secondary {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text);
+}
+button:hover { filter: brightness(1.08); }
+
+.footnote { margin: 16px 0 0; color: var(--muted); font-size: 12px; }
