@@ -258,6 +258,27 @@
     };
   }
 
+  // gstatic.com is Google's own image CDN — the host it serves result
+  // thumbnails and its transient panel proxy from, never the site that
+  // actually hosts the picture.
+  function isProxyImage(src) {
+    try {
+      return /(^|\.)gstatic\.com$/.test(new URL(src).hostname);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function ratioOf(img) {
+    return img && img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : null;
+  }
+
+  // Tolerance is deliberately loose next to the measured agreement (≤0.004)
+  // but still far tighter than the gap between genuinely different pictures.
+  function ratioMatches(a, b) {
+    return a !== null && b !== null && Math.abs(a - b) <= 0.02;
+  }
+
   // Google has exactly ONE shared panel/image element, reused for whichever
   // result was clicked most recently. If the user navigates again before a
   // previous reveal finishes polling, that older poll would otherwise read
@@ -286,7 +307,7 @@
    * ordinary navigation, not just the first click. onMetaReady lets the
    * caller catch metadata that arrives after the image already resolved,
    * so the badge still fills in without blocking the photo. */
-  function revealFullRes(result, { timeoutMs = 2500, metaCatchUpMs = 1200, pollMs = 60, onMetaReady } = {}) {
+  function revealFullRes(result, { timeoutMs = 2500, metaCatchUpMs = 1200, proxyGraceMs = 600, sameSrcGraceMs = 400, pollMs = 60, onMetaReady } = {}) {
     if (result.fullSrc) return Promise.resolve(result);
 
     const myGeneration = ++revealGeneration;
@@ -301,6 +322,11 @@
     const beforeEl = document.querySelector(SELECTORS.revealedImgSelector);
     const beforeSrc = beforeEl ? beforeEl.src : null;
 
+    // The clicked thumbnail's shape, used to recognise the panel already
+    // holding this same picture (see alreadyShowing below).
+    const thumbEl = result.clickTarget.querySelector(SELECTORS.thumbImg);
+    const expectedRatio = ratioOf(thumbEl);
+
     dispatchClick(result.clickTarget);
 
     // Suppress immediately too — the panel is visible (white background,
@@ -313,6 +339,7 @@
       const start = Date.now();
       let imageResolved = false;
       let metaDeadline = null; // starts counting only once the image itself is ready
+      let proxyDeadline = null; // how long to hold out for the origin URL
       const tick = () => {
         if (myGeneration !== revealGeneration) {
           // A newer navigation superseded us — the shared panel no longer
@@ -323,9 +350,52 @@
           return;
         }
         const revealed = document.querySelector(SELECTORS.revealedImgSelector);
-        const isNewImage = revealed && revealed.src && !revealed.src.startsWith('data:') && revealed.src !== beforeSrc;
+        const usableSrc = revealed && revealed.src && !revealed.src.startsWith('data:');
+        const changed = usableSrc && revealed.src !== beforeSrc;
+
+        // Google's panel survives a reload (its state rides in the #sv= URL
+        // fragment) and simply does nothing when you click the result it is
+        // already showing. Requiring the src to CHANGE therefore never fired
+        // in that case: the poll ran to its full timeout and fell back to the
+        // grid thumbnail with no metadata at all — the worst output, for the
+        // case where the panel was already correct.
+        //
+        // The panel image and the grid thumbnail are the same picture, so
+        // their aspect ratios match (measured across many results: within
+        // 0.004). That identifies "this is already the image you clicked"
+        // without needing the src to move. Held off for a moment first, so a
+        // panel that IS about to update gets to do so rather than being read
+        // while it still holds the previous result.
+        const alreadyShowing = usableSrc && !changed &&
+          Date.now() - start > sameSrcGraceMs &&
+          ratioMatches(ratioOf(revealed), expectedRatio);
+
+        const isNewImage = changed || alreadyShowing;
         if (isNewImage) {
           suppressGooglePanel(revealed);
+
+          // Google fills this element in three stages on every click, measured
+          // live: the previous image, then its own gstatic thumbnail proxy
+          // (~65ms in), then the real origin URL (~75ms in). The proxy stage
+          // is only about 10ms wide, but the poll below runs every 60ms, so it
+          // is entirely possible to sample exactly then — and since the proxy
+          // URL does differ from beforeSrc, it passed as "the new image" and
+          // got cached as fullSrc. The viewer then showed a ~500px proxy while
+          // the badge correctly reported the source's true dimensions, which
+          // is the opposite of the point of a full-resolution viewer.
+          //
+          // So a proxy URL is not accepted as final while there is still time
+          // for the origin URL to land. The grace period exists because some
+          // results only ever have a gstatic URL, and showing that beats
+          // showing nothing.
+          if (isProxyImage(revealed.src)) {
+            if (proxyDeadline === null) proxyDeadline = Date.now() + proxyGraceMs;
+            if (Date.now() <= proxyDeadline) {
+              setTimeout(tick, pollMs);
+              return;
+            }
+          }
+
           const meta = parseDimensionsAndSource(revealed);
           if (meta) {
             result.width = meta.width;
