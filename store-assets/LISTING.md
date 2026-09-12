@@ -1,7 +1,7 @@
 # Chrome Web Store listing — Monocle
 
 ## Name
-Monocle — Google Images Viewer
+Monocle | Google Images Fullscreen Viewer
 
 ## Short description (132 char max)
 Browse Google Images fullscreen, one large image at a time. Filmstrip navigation, shortlist, side-by-side compare. No host sites.
@@ -55,11 +55,6 @@ one — and that is optional. By default Copy places the image's URL on your
 clipboard, which needs no special access. If you want Copy to place the image
 itself on your clipboard, you can turn that on in the extension's settings; it
 asks for access then, and you can turn it off again at any time.
-
-NOTE
-
-Monocle works on Google Images search results. Google changes its page markup
-from time to time, which can temporarily break the viewer until it is updated.
 
 ---
 

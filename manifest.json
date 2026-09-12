@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Monocle — Google Images Viewer",
+  "name": "Monocle | Google Images Fullscreen Viewer",
   "version": "1.0.0",
   "description": "Fullscreen filmstrip viewer for Google Images search results — browse large, high-quality images back to back without visiting host sites.",
   "icons": {
