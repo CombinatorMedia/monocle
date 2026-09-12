@@ -454,9 +454,13 @@
 
 /* ---------- Grid compare mode ---------- */
 
+/* The right inset clears the icon cluster, derived the same way the single
+   image frame does it (32 edge + cluster width + 32 clearance). A flat 32px
+   ran the right-hand column underneath the icons, clipping those cells'
+   corner badges. */
 .fiv-grid {
   position: absolute;
-  inset: var(--space-32) var(--space-32) 128px;
+  inset: var(--space-32) calc(var(--space-32) + var(--icon-cluster-width) + var(--space-32)) 128px var(--space-32);
   display: none;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;

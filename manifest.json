@@ -16,7 +16,7 @@
     },
     "default_title": "Open fullscreen viewer"
   },
-  "permissions": ["activeTab", "scripting", "downloads"],
+  "permissions": ["downloads"],
   "host_permissions": ["https://www.google.com/*"],
   "optional_host_permissions": ["https://*/*"],
   "options_ui": {

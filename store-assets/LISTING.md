@@ -86,15 +86,12 @@ revoked there. Without it, Copy falls back to copying the image URL as text.
 Powers the download action in the viewer, saving the currently displayed image.
 Used only in response to the user pressing D or clicking the download button.
 
-**activeTab**
-Lets the toolbar button open the viewer on the Google Images tab the user is
-currently looking at.
-
-**scripting**
-Used to inject the viewer's stylesheet and interface into the Google Images page.
-
 **Remote code**: No. All code is contained in the extension package. Nothing is
 loaded or executed from a remote source.
+
+Note: activeTab and scripting were removed before submission — neither was used.
+The viewer is injected declaratively via content_scripts, not chrome.scripting,
+and the google.com host permission already covers the only site it runs on.
 
 ---
 
