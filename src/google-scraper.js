@@ -307,7 +307,7 @@
    * ordinary navigation, not just the first click. onMetaReady lets the
    * caller catch metadata that arrives after the image already resolved,
    * so the badge still fills in without blocking the photo. */
-  function revealFullRes(result, { timeoutMs = 2500, metaCatchUpMs = 1200, proxyGraceMs = 600, sameSrcGraceMs = 400, pollMs = 60, onMetaReady } = {}) {
+  function revealFullRes(result, { timeoutMs = 2500, metaCatchUpMs = 1200, upgradeWatchMs = 2000, sameSrcGraceMs = 400, pollMs = 60, onMetaReady, onUpgrade } = {}) {
     if (result.fullSrc) return Promise.resolve(result);
 
     const myGeneration = ++revealGeneration;
@@ -339,7 +339,7 @@
       const start = Date.now();
       let imageResolved = false;
       let metaDeadline = null; // starts counting only once the image itself is ready
-      let proxyDeadline = null; // how long to hold out for the origin URL
+      let upgradeDeadline = null; // how long to keep watching for the origin URL
       const tick = () => {
         if (myGeneration !== revealGeneration) {
           // A newer navigation superseded us — the shared panel no longer
@@ -388,12 +388,13 @@
           // for the origin URL to land. The grace period exists because some
           // results only ever have a gstatic URL, and showing that beats
           // showing nothing.
-          if (isProxyImage(revealed.src)) {
-            if (proxyDeadline === null) proxyDeadline = Date.now() + proxyGraceMs;
-            if (Date.now() <= proxyDeadline) {
-              setTimeout(tick, pollMs);
-              return;
-            }
+          // If the image already resolved as a proxy, we're only still here
+          // watching for the origin URL to replace it. Hand it over the moment
+          // it does and stop.
+          if (imageResolved && isProxyImage(result.fullSrc) && !isProxyImage(revealed.src)) {
+            result.fullSrc = revealed.src;
+            if (onUpgrade) onUpgrade(result);
+            return;
           }
 
           const meta = parseDimensionsAndSource(revealed);
@@ -407,15 +408,29 @@
             imageResolved = true;
             result.fullSrc = revealed.src;
             resolve(result);
-            if (meta) return; // both ready — done
-            metaDeadline = Date.now() + metaCatchUpMs; // give metadata a short grace period
+            // Google serves its own gstatic proxy first and swaps in the
+            // origin URL a moment later — usually within 10ms, but measured as
+            // late as 558ms, and the spread depends on the network. A fixed
+            // wait is the wrong shape for that: too short and we cache a
+            // ~450px proxy (which no amount of scaling filter can rescue),
+            // too long and every single navigation pays for the slowest case.
+            // So resolve now and keep watching: if the origin lands, upgrade
+            // in place. Costs nothing on the common path.
+            if (isProxyImage(result.fullSrc)) upgradeDeadline = Date.now() + upgradeWatchMs;
+            if (meta && !upgradeDeadline) return; // both ready, nothing to upgrade
+            if (!meta) metaDeadline = Date.now() + metaCatchUpMs;
           } else if (meta) {
             if (onMetaReady) onMetaReady(result);
-            return;
+            if (!upgradeDeadline) return;
           }
         }
         const hardTimedOut = Date.now() - start > timeoutMs;
         const metaGraceExpired = metaDeadline !== null && Date.now() > metaDeadline;
+        const stillWatchingForUpgrade = upgradeDeadline !== null && Date.now() <= upgradeDeadline;
+        if (stillWatchingForUpgrade && !hardTimedOut) {
+          setTimeout(tick, pollMs);
+          return;
+        }
         if (hardTimedOut || metaGraceExpired) {
           if (!imageResolved) {
             // Fall back to the thumbnail so the viewer still shows

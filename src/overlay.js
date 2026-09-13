@@ -229,6 +229,12 @@
       // arrive a little late, this fills in the badge on its own.
       const revealed = await global.FivScraper.revealFullRes(result, {
         onMetaReady: (r) => { if (this.current === r) this._updateBadge(r); },
+        // Google hands over its own low-res proxy first and the real origin
+        // image a moment later. Rather than delay every navigation waiting for
+        // that, show whatever arrives first and quietly swap up when the
+        // sharper file lands. _swapImage only fades once the new one has
+        // decoded, so the upgrade is never visible as a flicker.
+        onUpgrade: (r) => { if (token === this._loadToken) this._swapImage(r.fullSrc, token); },
       });
       if (token !== this._loadToken) return; // a newer load owns the <img> now
       this._updateBadge(revealed);
