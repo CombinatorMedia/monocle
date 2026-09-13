@@ -58,7 +58,14 @@
       // unstyled layout), it scrolls to the wrong position — the active
       // thumb ends up correctly highlighted but scrolled out of view. Once
       // the sheet finishes loading, recompute using the now-correct layout.
-      link.addEventListener('load', () => this._centerActiveThumb());
+      // Anything that MEASURES the overlay has to wait for this, not just the
+      // filmstrip centering: before it applies, .fiv-root is not yet
+      // position:fixed, so getBoundingClientRect on anything inside returns a
+      // box thousands of pixels down the document.
+      this._styleReady = new Promise((resolve) => {
+        link.addEventListener('load', () => { this._centerActiveThumb(); resolve(); });
+        link.addEventListener('error', resolve);
+      });
       this.shadow.appendChild(link);
 
       this.root = el(`
@@ -149,12 +156,23 @@
       window.addEventListener('resize', () => this._centerActiveThumb());
     }
 
-    open(results, startIndex) {
+    open(results, startIndex, originRect) {
       this.results = results;
       this.mount();
+      // Class goes on BEFORE unhiding, or the chrome paints at full opacity
+      // for a frame and then snaps to transparent to start the fade.
+      if (originRect) this.root.classList.add('is-opening');
       this.root.hidden = false;
       this.goTo(startIndex || 0);
       this._renderFilmstrip();
+      if (originRect) {
+        // Backstop: is-opening holds the whole chrome at opacity 0, so if the
+        // animation path ever fails to complete the viewer would be left
+        // permanently invisible. Cheap insurance against a very bad failure.
+        clearTimeout(this._openingFailsafe);
+        this._openingFailsafe = setTimeout(() => this.root.classList.remove('is-opening'), 1500);
+        this._playOpenFrom(originRect);
+      }
       // Pins persist across close/reopen (see togglePin) — if you starred
       // things last time you had the viewer open, the pill should already
       // be showing that count rather than only appearing after the next
@@ -278,6 +296,71 @@
     _formatDims(result) {
       if (!result || !result.width || !result.height) return '';
       return `${result.width.toLocaleString()} × ${result.height.toLocaleString()}`;
+    }
+
+    // Grows the photo out of the thumbnail that was clicked (a FLIP: measure
+    // where it should end up, invert to where it came from, then play to
+    // identity). A real Dock genie is a non-affine warp — the shape curves as
+    // it travels — which CSS transforms can't express, and the per-pixel
+    // routes to it are closed here: canvas and WebGL both need CORS-clean
+    // pixels, and these images are cross-origin without CORS headers.
+    //
+    // Opens on the grid thumbnail, which is already decoded and on screen, so
+    // there is something to animate on the very first frame instead of
+    // waiting on the reveal. The full-resolution file crossfades in when it
+    // arrives, through the same _swapImage path as any other navigation.
+    async _playOpenFrom(rect) {
+      const photo = this.els.photos.find((p) => p.classList.contains('is-active')) || this.els.photos[0];
+      const result = this.current;
+      const finish = () => this.root.classList.remove('is-opening');
+
+      if (result && result.thumbSrc) photo.src = result.thumbSrc;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return; }
+
+      // On the very first open the stylesheet may not have applied yet, and
+      // measuring the photo before it does yields a box far down the document
+      // instead of the fixed-position frame — which threw the animation's
+      // start point thousands of pixels off.
+      if (this._styleReady) await this._styleReady;
+
+      const from = rect;
+      const box = photo.getBoundingClientRect();
+      if (!box.width || !from.width || !from.height) { finish(); return; }
+
+      // object-fit: contain means the painted picture is inset within the
+      // element, so the element's own box is the wrong thing to match against
+      // the thumbnail — measure the painted area instead.
+      //
+      // The ratio comes from the clicked tile rather than the image's own
+      // naturalWidth, which would mean awaiting decode() and losing the first
+      // ~200ms of the animation to it. Google's grid preserves each image's
+      // aspect ratio (verified: a 235x453 tile for a 638x1200 source), so the
+      // tile's shape is the picture's shape.
+      const natAR = from.width / from.height;
+      const boxAR = box.width / box.height;
+      const paintedW = natAR > boxAR ? box.width : box.height * natAR;
+      const paintedH = natAR > boxAR ? box.width / natAR : box.height;
+
+      const scale = Math.max(from.width / paintedW, from.height / paintedH);
+      const tx = from.left + from.width / 2 - (box.left + box.width / 2);
+      const ty = from.top + from.height / 2 - (box.top + box.height / 2);
+
+      photo.style.transition = 'none';
+      photo.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      void photo.offsetWidth; // flush the inverted state before playing
+      photo.style.transition = 'transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+      photo.style.transform = 'translate(0px, 0px) scale(1)';
+
+      const done = () => {
+        clearTimeout(timer);
+        photo.removeEventListener('transitionend', done);
+        photo.style.transition = '';
+        finish();
+      };
+      // transitionend can be missed if the tab is backgrounded mid-animation,
+      // which would strand the chrome at opacity 0.
+      const timer = setTimeout(done, 700);
+      photo.addEventListener('transitionend', done);
     }
 
     _updateBadge(result) {

@@ -11,9 +11,9 @@
     return cachedResults;
   }
 
-  function openAt(index) {
+  function openAt(index, originRect) {
     const results = cachedResults.length ? cachedResults : refreshResults();
-    window.FivOverlay.open(results, index);
+    window.FivOverlay.open(results, index, originRect);
   }
 
   // Intercept a click on any result thumbnail (capture phase, before Google's
@@ -33,7 +33,9 @@
 
       e.preventDefault();
       e.stopImmediatePropagation();
-      openAt(index);
+      // The thumbnail's on-screen box, so the viewer can grow out of the
+      // exact tile that was clicked rather than just fading in.
+      openAt(index, rect);
     },
     true
   );

@@ -61,6 +61,55 @@
   display: none;
 }
 
+/* Opening: the photo grows out of the clicked thumbnail (see _playOpenFrom)
+   while everything around it fades up, so the chrome doesn't slam in at full
+   strength before the photo has arrived. */
+.fiv-panel,
+.fiv-filmstrip,
+.fiv-icon-cluster,
+.fiv-badge,
+.fiv-shortlist-pill {
+  transition: opacity 260ms ease;
+}
+
+/* transition:none here matters as much as the opacity. Without it, adding the
+   class ANIMATES the chrome from 1 down to 0 and only then back up — a visible
+   fade-out before the fade-in. Snapping to 0 while opening means removing the
+   class is the only transition that ever plays. */
+.fiv-root.is-opening .fiv-panel,
+.fiv-root.is-opening .fiv-filmstrip,
+.fiv-root.is-opening .fiv-icon-cluster,
+.fiv-root.is-opening .fiv-badge,
+.fiv-root.is-opening .fiv-shortlist-pill {
+  opacity: 0;
+  transition: none;
+}
+
+/* The photo is the thing being animated, so it must not fade with the rest —
+   and its own crossfade transition would fight the FLIP transform. */
+.fiv-root.is-opening .fiv-photo.is-active {
+  opacity: 1;
+  transition: none;
+}
+
+/* The frame clips its contents, but the tile the photo flies in from is often
+   outside the frame — anything in the bottom row sits below it. Clipping
+   during the flight makes the photo appear to emerge from a sliced-off
+   rectangle instead of from the thumbnail. */
+.fiv-root.is-opening .fiv-image-frame {
+  overflow: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fiv-panel,
+  .fiv-filmstrip,
+  .fiv-icon-cluster,
+  .fiv-badge,
+  .fiv-shortlist-pill {
+    transition: none;
+  }
+}
+
 .fiv-panel {
   position: absolute;
   inset: 0;
