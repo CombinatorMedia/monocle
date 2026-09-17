@@ -24,7 +24,7 @@
 
   --glass-white-06: rgba(255, 255, 255, 0.06);
   --glass-white-10: rgba(255, 255, 255, 0.1);
-  --glass-tile: rgba(255, 255, 255, 0.3);
+  --glass-tile: rgba(255, 255, 255, 0.2);
   --glass-highlight-16: rgba(170, 183, 216, 0.16);
 
   --glow-color: rgba(255, 255, 255, 0.5);
@@ -289,10 +289,34 @@
   pointer-events: none;
 }
 
-/* Close sits apart from the rest of the stack, matching Figma's 36px gap
-   (8px flex gap + 28px extra) vs. the 8px gap between the other icons. */
+/* Close sits apart from the rest of the stack, matching Figma's 24px gap
+   (8px flex gap + 16px extra) vs. the 8px gap between the other icons. */
 .fiv-close {
-  margin-bottom: 28px;
+  margin-bottom: 16px;
+}
+
+/* Close carries no chip at all — in Figma (127:933) its fill and its GLASS
+   effect are both switched off, leaving a bare glyph, while the five buttons
+   below keep theirs. So the tile background, its blur and the specular ring
+   all come off, and the 36x36 box stays purely as the hit target. */
+.fiv-close {
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.fiv-close::before {
+  content: none;
+}
+
+/* The X itself is drawn larger than the other glyphs to compensate for
+   losing its chip: a 26x26 icon box against the others' 20x20. Our path
+   spans exactly half its 24-unit viewBox, matching Figma's 13px vector in a
+   26px box. Both classes in the selector on purpose — `.fiv-close svg` alone
+   ties with `.fiv-icon-btn svg` on specificity and loses on source order. */
+.fiv-icon-btn.fiv-close svg {
+  width: 26px;
+  height: 26px;
 }
 
 .fiv-icon-btn svg {
@@ -540,9 +564,7 @@
   bottom: var(--space-12);
 }
 
-/* ---------- Close affordance ---------- */
-
-.fiv-icon-btn.fiv-close svg {
-  width: 20px;
-  height: 20px;
-}
+/* The close glyph's size is set with the rest of the icon cluster, above.
+   A duplicate rule lived here pinning it to 20px — invisible while that
+   matched the generic icon size, but it silently won over the cluster's own
+   rule the moment the two disagreed. */
