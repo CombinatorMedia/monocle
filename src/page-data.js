@@ -59,7 +59,7 @@
   }
 
   const RECORD =
-    /\[0,"([A-Za-z0-9_-]{6,})",\["https?:\/\/encrypted-tbn[^"]*",\d{1,6},\d{1,6}\],\["(https?:\/\/[^"]+)",(\d{1,6}),(\d{1,6})\]/g;
+    /\[0,"([A-Za-z0-9_-]{6,})",\["(https?:\/\/encrypted-tbn[^"]*)",\d{1,6},\d{1,6}\],\["(https?:\/\/[^"]+)",(\d{1,6}),(\d{1,6})\]/g;
   // The source page and title live a little further into the same record.
   const PAGE = /"2003":\[null,"[A-Za-z0-9_-]+","((?:[^"\\]|\\.)*)","((?:[^"\\]|\\.)*)"/;
 
@@ -94,9 +94,13 @@
       const page = PAGE.exec(tail);
       records.push({
         docid,
-        full: m[2],
-        height: parseInt(m[3], 10),
-        width: parseInt(m[4], 10),
+        // Google's own small copy on its CDN. Worth carrying: it is already
+        // sized for fast delivery, so the viewer can put a picture on screen
+        // immediately while the (often multi-megabyte) original downloads.
+        preview: m[2],
+        full: m[3],
+        height: parseInt(m[4], 10),
+        width: parseInt(m[5], 10),
         page: page ? page[1] : null,
         title: page ? page[2] : null,
       });

@@ -71,6 +71,7 @@
   function applyRecord(result, record) {
     if (!record) return false;
     result.fullSrc = record.full;
+    result.previewSrc = record.preview || null;
     result.width = record.width;
     result.height = record.height;
     result.sourcePage = record.page;
@@ -106,6 +107,7 @@
         thumbSrc: img.currentSrc || img.src,
         clickTarget: container,
         fullSrc: null,
+        previewSrc: null,
         width: null,
         height: null,
         domain: null,

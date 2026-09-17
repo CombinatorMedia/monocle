@@ -241,6 +241,7 @@
       // result we started with even when it's the same image — the check
       // then failed and this returned early.
       const token = ++this._loadToken;
+      this._loadStage = 0;
       // The image URL, its true dimensions and its source all arrive together,
       // out of Google's own page data — usually already in hand, so this
       // resolves in the same tick. The onMetaReady/onUpgrade callbacks this
@@ -251,7 +252,25 @@
       if (token !== this._loadToken) return; // a newer load owns the <img> now
       this._updateBadge(revealed);
       this._setStarIcon(this.pinned.has(revealed.id));
-      this._swapImage(revealed.fullSrc || revealed.thumbSrc, token, revealed.thumbSrc);
+
+      // Originals are frequently multi-megabyte: measured 33ms to 2.3s to
+      // decode on this connection. Waiting for one before changing anything
+      // leaves the PREVIOUS photo on screen, which reads as a dead keypress.
+      // So put Google's small copy up if the original is taking its time, and
+      // let the original replace it when ready. The delay keeps the common
+      // fast case to a single swap — no visible detour through a soft image —
+      // and the stage guard makes a late preview lose to an early original.
+      const full = revealed.fullSrc || revealed.thumbSrc;
+      const preview = revealed.previewSrc || revealed.thumbSrc;
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (!settled && token === this._loadToken && preview && preview !== full) {
+          this._swapImage(preview, token, null, 0);
+        }
+      }, 120);
+      await this._swapImage(full, token, revealed.thumbSrc, 1);
+      settled = true;
+      clearTimeout(timer);
     }
 
     // Loads the next photo into whichever of the two stacked <img>s is
@@ -283,14 +302,18 @@
     // Both are closed by decoding off-DOM first, then finishing any fade still
     // in flight before touching either element. Nothing visible is ever
     // reassigned, and nothing is faded in before it has pixels.
-    _swapImage(src, token, fallbackSrc) {
-      if (!src) return;
+    _swapImage(src, token, fallbackSrc, stage = 1) {
+      if (!src) return Promise.resolve(false);
       const photos = this.els.photos;
       const current = photos.find((p) => p.classList.contains('is-active')) || photos[0];
-      if (current.src === src) return; // already showing this photo
+      if (current.src === src) return Promise.resolve(true); // already showing
 
       const start = (readySrc) => {
         if (token !== this._loadToken) return; // a newer load owns the frame now
+        // Stages run one way only: a preview that decodes late must never
+        // replace the full-resolution photo that beat it to the screen.
+        if (stage < this._loadStage) return;
+        this._loadStage = stage;
         const showing = photos.find((p) => p.classList.contains('is-active')) || photos[0];
         if (showing.src === readySrc) return;
         const next = photos.find((p) => p !== showing);
@@ -319,16 +342,20 @@
       const pre = new Image();
       pre.src = src;
       const onFail = () => {
-        // A hotlink-blocked or dead origin URL. Falling back to the thumbnail
-        // keeps a picture on screen instead of a broken-image glyph.
-        if (fallbackSrc && fallbackSrc !== src) this._swapImage(fallbackSrc, token);
+        // A hotlink-blocked or dead origin URL — roughly 1 in 10 records point
+        // at http:// and Chrome's automatic HTTPS upgrade can fail outright.
+        // Falling back keeps a picture on screen instead of a broken-image
+        // glyph. Reuses this stage so the fallback can still take the screen.
+        if (fallbackSrc && fallbackSrc !== src) return this._swapImage(fallbackSrc, token, null, stage);
+        return false;
       };
       if (pre.decode) {
-        pre.decode().then(() => start(src), onFail);
-      } else {
-        pre.onload = () => start(src);
-        pre.onerror = onFail;
+        return pre.decode().then(() => { start(src); return true; }, onFail);
       }
+      return new Promise((resolve) => {
+        pre.onload = () => { start(src); resolve(true); };
+        pre.onerror = () => resolve(onFail());
+      });
     }
 
     // Thousands separators, so grid-compare badges read the same as the main
