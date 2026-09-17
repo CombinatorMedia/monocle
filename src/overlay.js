@@ -241,23 +241,17 @@
       // result we started with even when it's the same image — the check
       // then failed and this returned early.
       const token = ++this._loadToken;
-      // onMetaReady: revealFullRes resolves as soon as the IMAGE is ready,
-      // without waiting on metadata (dimensions/domain/source link) that
-      // can occasionally lag behind or never show up. If metadata does
-      // arrive a little late, this fills in the badge on its own.
-      const revealed = await global.FivScraper.revealFullRes(result, {
-        onMetaReady: (r) => { if (this.current === r) this._updateBadge(r); },
-        // Google hands over its own low-res proxy first and the real origin
-        // image a moment later. Rather than delay every navigation waiting for
-        // that, show whatever arrives first and quietly swap up when the
-        // sharper file lands. _swapImage only fades once the new one has
-        // decoded, so the upgrade is never visible as a flicker.
-        onUpgrade: (r) => { if (token === this._loadToken) this._swapImage(r.fullSrc, token); },
-      });
+      // The image URL, its true dimensions and its source all arrive together,
+      // out of Google's own page data — usually already in hand, so this
+      // resolves in the same tick. The onMetaReady/onUpgrade callbacks this
+      // used to pass are gone with the panel-scraping they compensated for:
+      // there is no late-arriving metadata to patch in, and no low-res proxy
+      // to quietly upgrade away from.
+      const revealed = await global.FivScraper.revealFullRes(result);
       if (token !== this._loadToken) return; // a newer load owns the <img> now
       this._updateBadge(revealed);
       this._setStarIcon(this.pinned.has(revealed.id));
-      this._swapImage(revealed.fullSrc || revealed.thumbSrc, token);
+      this._swapImage(revealed.fullSrc || revealed.thumbSrc, token, revealed.thumbSrc);
     }
 
     // Loads the next photo into whichever of the two stacked <img>s is
@@ -272,23 +266,69 @@
     // error (no load event fires), and re-showing an already-cached src (no
     // load event either — the case backward navigation hits most, since
     // revisited results resolve instantly from cache).
-    _swapImage(src, token) {
-      const outgoing = this.els.photos.find((p) => p.classList.contains('is-active')) || this.els.photos[0];
-      const incoming = this.els.photos.find((p) => p !== outgoing);
-      const show = () => {
+    // Two failure modes to avoid, both of which show as a flash:
+    //
+    // 1. Assigning src to an element that is currently PAINTING blanks it on
+    //    the spot — an <img> drops its pixels the instant its src changes. The
+    //    outgoing photo keeps covering the screen for the whole 180ms fade, so
+    //    a navigation arriving inside that window used to pick the still-
+    //    visible outgoing element as its target and blank it: measured live at
+    //    a composite frame of 0.03 opacity, i.e. black. This is the flash that
+    //    survived every attempt to suppress Google's panel, because it was
+    //    never Google's panel. It hits hardest arrowing BACKWARD through
+    //    already-visited results, where each step resolves from cache
+    //    instantly and therefore lands inside the previous fade.
+    // 2. Fading in an element whose image has not decoded shows a blank.
+    //
+    // Both are closed by decoding off-DOM first, then finishing any fade still
+    // in flight before touching either element. Nothing visible is ever
+    // reassigned, and nothing is faded in before it has pixels.
+    _swapImage(src, token, fallbackSrc) {
+      if (!src) return;
+      const photos = this.els.photos;
+      const current = photos.find((p) => p.classList.contains('is-active')) || photos[0];
+      if (current.src === src) return; // already showing this photo
+
+      const start = (readySrc) => {
         if (token !== this._loadToken) return; // a newer load owns the frame now
-        incoming.classList.add('is-active');
-        outgoing.classList.remove('is-active');
+        const showing = photos.find((p) => p.classList.contains('is-active')) || photos[0];
+        if (showing.src === readySrc) return;
+        const next = photos.find((p) => p !== showing);
+
+        // Land the previous crossfade instantly: the incoming photo of that
+        // fade jumps to fully opaque, the outgoing to fully transparent. Only
+        // then is `next` guaranteed invisible and safe to reassign. Snapping
+        // BOTH matters — snapping only the one being reused would leave a
+        // half-faded photo alone on screen, which is the same dim frame in a
+        // different costume.
+        showing.style.transition = 'none';
+        next.style.transition = 'none';
+        showing.classList.add('is-active');
+        next.classList.remove('is-active');
+        void next.offsetWidth; // flush the snap before re-enabling transitions
+        showing.style.transition = '';
+        next.style.transition = '';
+
+        next.src = readySrc;
+        next.classList.add('is-active');
+        showing.classList.remove('is-active');
       };
-      if (outgoing.src === src) return; // already showing this photo
-      incoming.onload = show;
-      // On error, swap anyway — a broken-image state is more honest than
-      // leaving the previous photo up underneath the new badge.
-      incoming.onerror = show;
-      if (incoming.src !== src) incoming.src = src;
-      // Already decoded (same src as last time it was used, or a cache hit):
-      // no load event is coming, so fade it in directly.
-      if (incoming.complete && incoming.naturalWidth > 0) show();
+
+      // decode() resolves only once the pixels are ready to paint, so the
+      // element we hand this src to renders on its very first frame.
+      const pre = new Image();
+      pre.src = src;
+      const onFail = () => {
+        // A hotlink-blocked or dead origin URL. Falling back to the thumbnail
+        // keeps a picture on screen instead of a broken-image glyph.
+        if (fallbackSrc && fallbackSrc !== src) this._swapImage(fallbackSrc, token);
+      };
+      if (pre.decode) {
+        pre.decode().then(() => start(src), onFail);
+      } else {
+        pre.onload = () => start(src);
+        pre.onerror = onFail;
+      }
     }
 
     // Thousands separators, so grid-compare badges read the same as the main

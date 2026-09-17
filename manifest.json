@@ -38,6 +38,16 @@
         "https://www.google.com/search*"
       ],
       "js": [
+        "src/page-data.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.google.com/search*"
+      ],
+      "js": [
         "src/google-scraper.js",
         "src/overlay.js",
         "src/content.js"
