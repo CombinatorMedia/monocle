@@ -9,7 +9,7 @@ One large image at a time, with filmstrip navigation, a shortlist, and side-by-s
 
 <p align="center">
   <img alt="Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?logo=googlechrome&logoColor=white">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.1.0-111">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.1.1-111">
   <img alt="No tracking" src="https://img.shields.io/badge/tracking-none-2ea44f">
 </p>
 
@@ -83,6 +83,7 @@ manifest.json         Extension manifest (MV3)
 src/
   content.js          Entry point on Google search pages
   google-scraper.js   Reads results and resolves full-resolution sources
+  page-data.js        Reads Google's own image data from the results page
   overlay.js/.css     The fullscreen viewer, filmstrip, shortlist, and compare
   background.js       Service worker (downloads, optional permissions)
   options.*           Settings page
