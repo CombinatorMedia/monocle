@@ -11,6 +11,7 @@ One large image at a time, with filmstrip navigation, a shortlist, and side-by-s
   <img alt="Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?logo=googlechrome&logoColor=white">
   <img alt="Version" src="https://img.shields.io/badge/version-1.1.1-111">
   <img alt="No tracking" src="https://img.shields.io/badge/tracking-none-2ea44f">
+  <a href="https://youtu.be/LlKX2AwHkBQ"><img alt="Watch the demo" src="https://img.shields.io/badge/demo-YouTube-FF0000?logo=youtube&logoColor=white"></a>
 </p>
 
 ![Monocle fullscreen viewer with filmstrip](store-assets/01-main-viewer.png)
@@ -20,6 +21,15 @@ One large image at a time, with filmstrip navigation, a shortlist, and side-by-s
 Google Images shows you a wall of thumbnails. When I'm searching for reference, I want to actually look at each image: big, uncropped, and without bouncing out to whatever site is hosting it. Monocle turns the results page into a proper viewer.
 
 Click any result and it opens fullscreen at full resolution, growing out of the thumbnail you clicked. A filmstrip along the bottom moves through everything the search found, and you never land on a host site unless you choose to.
+
+## See it in action
+
+A real-time walkthrough of v1.1.1 on a live Google Images search:
+
+<p align="center">
+  <a href="https://youtu.be/LlKX2AwHkBQ"><img src="https://img.youtube.com/vi/LlKX2AwHkBQ/maxresdefault.jpg" width="720" alt="Watch the Monocle demo on YouTube"></a><br>
+  <sub>▶ Watch the demo on YouTube</sub>
+</p>
 
 ## Features
 
